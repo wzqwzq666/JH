@@ -3,7 +3,7 @@
 -- @Last Modified by:   Webster
 -- @Last Modified time: 2016-03-30 07:52:51
 
--- ���ڴ��� ��Ҫ��д
+-- 早期代码 需要重写
 
 local PATH_ROOT = JH.GetAddonInfo().szRootPath .. "GKP/"
 local _L = JH.LoadLangPack
@@ -11,16 +11,16 @@ local _L = JH.LoadLangPack
 GKP = {
 	bDebug2              = false,
 	bOn                  = true,  -- enable
-	bMoneyTalk           = false, -- ��Ǯ�䶯����
-	bAlertMessage        = true,  -- ���븱�������������
-	bMoneySystem         = false, -- ��¼ϵͳ��Ǯ�䶯
+	bMoneyTalk           = false, -- 金钱变动喊话
+	bAlertMessage        = true,  -- 进入副本提醒清空数据
+	bMoneySystem         = false, -- 记录系统金钱变动
 	bDisplayEmptyRecords = true,  -- show 0 record
-	bAutoSync            = true,  -- �Զ����շ����ߵ�ͬ����Ϣ
+	bAutoSync            = true,  -- 自动接收分配者的同步信息
 	bShowGoldBrick       = true,
 }
 JH.RegisterCustomData("GKP")
 ---------------------------------------------------------------------->
--- ���غ��������
+-- 本地函数与变量
 ----------------------------------------------------------------------<
 local _GKP = {
 	szIniFile   = PATH_ROOT .. "ui/GKP.ini",
@@ -57,7 +57,7 @@ local _GKP = {
 }
 _GKP.Config = JH.LoadLUAData("config/gkp.cfg") or _GKP.Config
 ---------------------------------------------------------------------->
--- ���ݴ���
+-- 数据处理
 ----------------------------------------------------------------------<
 setmetatable(GKP,{ __call = function(me, key, value, sort)
 	if _GKP[key] then
@@ -126,7 +126,7 @@ setmetatable(GKP,{ __call = function(me, key, value, sort)
 end})
 
 ---------------------------------------------------------------------->
--- ���غ���
+-- 本地函数
 ----------------------------------------------------------------------<
 function _GKP.SaveConfig()
 	JH.SaveLUAData("config/gkp.cfg", _GKP.Config)
@@ -231,7 +231,7 @@ end
 function _GKP.Init()
 	local me = GetClientPlayer()
 	_GKP.OpenPanel(true):Hide()
-	JH.DelayCall(function() -- Init�Ӻ� ����ͽ��븱����ͻ
+	JH.DelayCall(function() -- Init延后 避免和进入副本冲突
 		_GKP.LoadData("GKP/" .. me.szName .. "/" .. FormatTime("%Y-%m-%d", GetCurrentTime()))
 	end, 125)
 end
@@ -241,7 +241,7 @@ function _GKP.GetRecordWindow()
 	return Station.Lookup("Normal/GKP_Record")
 end
 
-function _GKP.Random() -- ����һ������ַ��� �⻹���ظ��ҳ���
+function _GKP.Random() -- 生成一个随机字符串 这还能重复我吃翔
 	local a = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,_+;*-"
 	local t = {}
 	for i = 1, 64 do
@@ -303,7 +303,7 @@ function _GKP.GetFormatLink(item, bName)
 end
 
 ---------------------------------------------------------------------->
--- ���崴��ʱ�ᱻ����
+-- 窗体创建时会被调用
 ----------------------------------------------------------------------<
 function GKP.OnFrameCreate()
 	_GKP.frame = this
@@ -334,7 +334,7 @@ function GKP.OnFrameCreate()
 	hPageSet:Fetch("WndCheck_GKP_Record"):Fetch("Text_GKP_Record"):Text(g_tStrings.GOLD_BID_RECORD_STATIC_TITLE)
 	hPageSet:Fetch("WndCheck_GKP_Account"):Fetch("Text_GKP_Account"):Text(g_tStrings.GOLD_BID_RPAY_STATIC_TITLE)
 	JH.RegisterGlobalEsc("GKP", _GKP.IsOpened, _GKP.ClosePanel)
-	-- ����
+	-- 排序
 	local page = this:Lookup("PageSet_Menu/Page_GKP_Record")
 	local t = {
 		{"#",         false},
@@ -367,7 +367,7 @@ function GKP.OnFrameCreate()
 		end
 	end
 
-	-- ����2
+	-- 排序2
 	local page = this:Lookup("PageSet_Menu/Page_GKP_Account")
 	local t = {
 		{"#",        false},
@@ -511,7 +511,7 @@ end
 GUI.RegisterPanel(_L["GKP Golden Team Record"], { "ui/Image/Common/Money.uitex", 15 }, g_tStrings.CHANNEL_CHANNEL, PS)
 
 ---------------------------------------------------------------------->
--- ��ȡ���������˵�
+-- 获取补贴方案菜单
 ----------------------------------------------------------------------<
 function _GKP.GetSubsidiesMenu()
 	local menu = { szOption = _L["Edit Allowance Protocols"], rgb = { 255, 0, 0 } }
@@ -541,7 +541,7 @@ function _GKP.GetSubsidiesMenu()
 	return menu
 end
 ---------------------------------------------------------------------->
--- ��ȡ���������˵�
+-- 获取拍卖方案菜单
 ----------------------------------------------------------------------<
 function _GKP.GetSchemeMenu()
 	local menu = { szOption = _L["Edit Auction Protocols"], rgb = { 255, 0, 0 } }
@@ -591,7 +591,7 @@ function _GKP.GetMoneyTipText(nGold)
 end
 
 ---------------------------------------------------------------------->
--- ������Ʒ��¼
+-- 绘制物品记录
 ----------------------------------------------------------------------<
 function _GKP.DrawRecord(key, sort)
 	local key = key or _GKP.hRecordContainer.key or "nTime"
@@ -730,7 +730,7 @@ function GKP.GetTeamMemberMenu(fnAction, bDisable, bSelf)
 end
 
 ---------------------------------------------------------------------->
--- ͬ������
+-- 同步数据
 ----------------------------------------------------------------------<
 function _GKP.OnSync()
 	local me = GetClientPlayer()
@@ -738,7 +738,7 @@ function _GKP.OnSync()
 		local menu = GKP.GetTeamMemberMenu(function(v)
 			JH.Confirm(_L["Wheater replace the current record with the synchronization target's record?\n Please notice, this means you are going to lose the information of current record."], function()
 				JH.Alert(_L["Asking for the sychoronization information...\n If no response in longtime, it may because the opposite side are not using GKP plugin or not responding."])
-				JH.BgTalk(PLAYER_TALK_CHANNEL.RAID, "GKP", "GKP_Sync", v.szName) -- ����ͬ����Ϣ
+				JH.BgTalk(PLAYER_TALK_CHANNEL.RAID, "GKP", "GKP_Sync", v.szName) -- 请求同步信息
 			end)
 		end, true)
 		table.insert(menu, 1, { bDevide = true })
@@ -764,7 +764,7 @@ JH.RegisterBgMsg("GKP", function(nChannel, dwID, szName, data, bIsSelf)
 				local str = JH.JsonEncode(tab)
 				local nMax = 500
 				local nTotle = math.ceil(#str / nMax)
-				-- ����Ƶ������������ ������̫����
+				-- 密聊频道限制了字数 发起来太慢了
 				JH.BgTalk(PLAYER_TALK_CHANNEL.RAID, "GKP", "GKP_Sync_Start", dwID, nTotle)
 				for i = 1, nTotle do
 					JH.BgTalk(PLAYER_TALK_CHANNEL.RAID, "GKP", "GKP_Sync_Content", dwID, string.sub(str ,(i-1) * nMax + 1, i * nMax))
@@ -824,7 +824,7 @@ JH.RegisterBgMsg("GKP", function(nChannel, dwID, szName, data, bIsSelf)
 		if data[1] == "GKP_INFO" then
 			if data[2] == "Start" then
 				local szFrameName = data[3] == "Information on Debt" and "GKP_Debt" or "GKP_info"
-				if data[3] == "Information on Debt" and szName ~= me.szName then -- Ƿծ��¼ֻ�Լ���
+				if data[3] == "Information on Debt" and szName ~= me.szName then -- 欠债记录只自己看
 					return
 				end
 				local ui = GUI.CreateFrame(szFrameName, { w = 760, h = 350, title = _L["GKP Golden Team Record"], close = true }):Point()
@@ -874,7 +874,7 @@ JH.RegisterBgMsg("GKP", function(nChannel, dwID, szName, data, bIsSelf)
 							end
 						end
 					end
-					for k, v in ipairs(GKP("GKP_Record")) do -- �����ڱ��ؼ�¼ ����Ҳ�����ܲ��쵽��ȥ
+					for k, v in ipairs(GKP("GKP_Record")) do -- 依赖于本地记录 反正也不可能差异到哪去
 						if v.szPlayer == data[3] then
 							if dwForceID == -1 then
 								dwForceID = v.dwForceID
@@ -938,12 +938,12 @@ JH.RegisterBgMsg("GKP", function(nChannel, dwID, szName, data, bIsSelf)
 						if n >= 4 then
 							local nMoney = tonumber(data[4]) or 0
 							local t = {
-								{ 50000,   1 }, -- �ڳ���
-								{ 100000,  0 }, -- ����
-								{ 250000,  2 }, -- ��˧
-								{ 500000,  6 }, -- �Գ�С����
-								{ 5000000, 3 }, -- �ر��
-								{ 5000000, 5 }, -- ����ר��r
+								{ 50000,   1 }, -- 黑出翔
+								{ 100000,  0 }, -- 背锅
+								{ 250000,  2 }, -- 脸帅
+								{ 500000,  6 }, -- 自称小红手
+								{ 2000000, 3 }, -- 特别红
+								{ 5000000, 5 }, -- 玄晶专用r
 							}
 							local nFrame = 4
 							for k, v in ipairs(t) do
@@ -978,7 +978,7 @@ function _GKP.SetButton(bEnable)
 end
 
 ---------------------------------------------------------------------->
--- �ָ���¼��ť
+-- 恢复记录按钮
 ----------------------------------------------------------------------<
 function _GKP.Recovery()
 	local me = GetClientPlayer()
@@ -1010,7 +1010,7 @@ function _GKP.Recovery()
 	PopupMenu(menu)
 end
 ---------------------------------------------------------------------->
--- �������
+-- 清空数据
 ----------------------------------------------------------------------<
 function _GKP.ClearData(bConfirm)
 	local fnAction = function()
@@ -1029,7 +1029,7 @@ function _GKP.ClearData(bConfirm)
 	end
 end
 ---------------------------------------------------------------------->
--- Ƿ�����
+-- 欠费情况
 ----------------------------------------------------------------------<
 function _GKP.OweList()
 	local me = GetClientPlayer()
@@ -1065,14 +1065,14 @@ function _GKP.OweList()
 			end
 		end
 	end
-	-- Ƿ��
+	-- 欠账
 	local tMember2 = {}
 	for k,v in pairs(tMember) do
 		if v ~= 0 then
 			table.insert(tMember2, { szName = k, nGold = v * -1 })
 		end
 	end
-	-- ����
+	-- 正账
 	for k,v in pairs(_Account) do
 		if v > 0 then
 			table.insert(tMember2, { szName = k, nGold = v })
@@ -1094,7 +1094,7 @@ function _GKP.OweList()
 	local nGold, nGold2 = 0, 0
 	for _,v in ipairs(GKP("GKP_Account")) do
 		if not v.bDelete then
-			if v.szPlayer and v.szPlayer ~= "System" then -- ����Ҫ�н��׶���
+			if v.szPlayer and v.szPlayer ~= "System" then -- 必须要有交易对象
 				if tonumber(v.nGold) > 0 then
 					nGold = nGold + v.nGold
 				else
@@ -1112,7 +1112,7 @@ function _GKP.OweList()
 	JH.BgTalk(PLAYER_TALK_CHANNEL.RAID, "GKP", "GKP_INFO", "End", _L("Received: %d Gold.", nGold))
 end
 ---------------------------------------------------------------------->
--- ��ȡ�����ܶ�
+-- 获取工资总额
 ----------------------------------------------------------------------<
 function _GKP.GetRecordSum(bAccurate)
 	local a, b = 0, 0
@@ -1151,7 +1151,7 @@ function _GKP.GetAccountSum(bAccurate)
 end
 
 ---------------------------------------------------------------------->
--- ���������ť
+-- 消费情况按钮
 ----------------------------------------------------------------------<
 function _GKP.SpendingList()
 	local me = GetClientPlayer()
@@ -1179,7 +1179,7 @@ function _GKP.SpendingList()
 	table.sort(tTime, function(a, b)
 		return a.nTime < b.nTime
 	end)
-	local nTime = tTime[#tTime].nTime - tTime[1].nTime -- �����ѵ�ʱ��
+	local nTime = tTime[#tTime].nTime - tTime[1].nTime -- 所花费的时间
 
 	JH.Talk(_L["--- Consumption ---"])
 	JH.BgTalk(PLAYER_TALK_CHANNEL.RAID, "GKP", "GKP_INFO", "Start", "--- Consumption ---")
@@ -1199,7 +1199,7 @@ function _GKP.SpendingList()
 	JH.BgTalk(PLAYER_TALK_CHANNEL.RAID, "GKP", "GKP_INFO", "End", _L("Total Auction: %d Gold.", _GKP.GetRecordSum()), _GKP.GetRecordSum(), nTime)
 end
 ---------------------------------------------------------------------->
--- ���㹤�ʰ�ť
+-- 结算工资按钮
 ----------------------------------------------------------------------<
 function _GKP.Calculation()
 	local me = GetClientPlayer()
@@ -1228,7 +1228,7 @@ function _GKP.Calculation()
 end
 
 ---------------------------------------------------------------------->
--- ����ҳ��
+-- 记账页面
 ----------------------------------------------------------------------<
 function _GKP.Record(tab, item, bEnter)
 	-- CreateFrame
@@ -1316,7 +1316,7 @@ function _GKP.Record(tab, item, bEnter)
 		hPlayer:Text(g_tStrings.PLAYER_NOT_EMPTY):Color(255, 255, 255)
 		hSource:Text(_L["Add Manually"]):Enable(false)
 	end
-	if tab and type(item) == "number" then -- �༭
+	if tab and type(item) == "number" then -- 编辑
 		hPlayer:Text(tab.szPlayer):Color(JH.GetForceColor(tab.dwForceID))
 		dwForceID = tab.dwForceID
 		local iName = JH.GetItemName(tab.nUiId)
@@ -1415,7 +1415,7 @@ end
 
 
 ---------------------------------------------------------------------->
--- ��Ǯ��¼
+-- 金钱记录
 ----------------------------------------------------------------------<
 _GKP.TradingTarget = {}
 
@@ -1430,7 +1430,7 @@ function _GKP.MoneyUpdate(nGold, nSilver, nCopper)
 		return
 	end
 	GKP("GKP_Account", {
-		nGold     = nGold, -- API���������� ���� ֻ���
+		nGold     = nGold, -- API给的有问题 …… 只算金
 		szPlayer  = _GKP.TradingTarget.szName or "System",
 		dwForceID = _GKP.TradingTarget.dwForceID,
 		nTime     = GetCurrentTime(),
@@ -1494,13 +1494,13 @@ function _GKP.DrawAccount(key,sort)
 	_GKP.hAccountContainer:FormatAllContentPos()
 end
 
-RegisterEvent("TRADING_OPEN_NOTIFY",function() -- ���׿�ʼ
+RegisterEvent("TRADING_OPEN_NOTIFY",function() -- 交易开始
 	_GKP.TradingTarget = GetPlayer(arg0)
 end)
-RegisterEvent("TRADING_CLOSE",function() -- ���׽���
+RegisterEvent("TRADING_CLOSE",function() -- 交易结束
 	_GKP.TradingTarget = {}
 end)
-RegisterEvent("MONEY_UPDATE",function() --��Ǯ�䶯
+RegisterEvent("MONEY_UPDATE",function() --金钱变动
 	_GKP.MoneyUpdate(arg0, arg1, arg2)
 end)
 
